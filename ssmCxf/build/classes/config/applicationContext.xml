@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.1.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.1.xsd">
+	
+	<!-- 采用注释的方式配置bean -->
+	<context:annotation-config/>
+	<!-- 配置要扫描的包 -->
+	<context:component-scan base-package="com.sshome.ssmcxf"/>
+	<!-- 数据库配置文件位置 -->
+	<context:property-placeholder location="classpath:config/init.properties"/>
+	<!-- 配置数据源  oracle c3p0-->
+	<bean id="dataSourceTarget" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		p:driverClass="${jdbc.driverClassName}"
+		p:jdbcUrl="${jdbc.url}"
+		p:user="${jdbc.username}"
+		p:password="${jdbc.password}" 
+		p:checkoutTimeout="${cpool.checkoutTimeout}"
+		p:minPoolSize="${cpool.minPoolSize}"
+		p:maxPoolSize="${cpool.maxPoolSize}"
+		p:maxIdleTime="${cpool.maxIdleTime}"
+		destroy-method="close"
+	></bean>
+	
+	<bean id="dataSource" class="org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy">
+		<property name="targetDataSource" ref="dataSourceTarget"></property>
+	</bean>
+	
+	<!-- 声明式事务管理begin -->
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	
+    <aop:config>
+        <aop:advisor pointcut="execution(* com.sshome.ssmcxf..*Impl.*(..))" advice-ref="txAdvice"/>
+    </aop:config>
+
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="find*" read-only="true"/>
+            <tx:method name="get*" read-only="true"/>
+            <tx:method name="load*" read-only="true"/>
+            <tx:method name="query*" read-only="true"/>
+            <tx:method name="search*" read-only="true"/>
+            <tx:method name="*" rollback-for="Exception"/>
+        </tx:attributes>
+    </tx:advice>
+    <!-- 声明式事务管理end -->
+	
+	<!-- 配置mybitasSqlSessionFactoryBean -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean" >
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation" value="classpath:config/sqlmap-config.xml" />
+		<property name="mapperLocations" value="classpath:sqlMapper/**/*.xml" />
+	</bean>
+	<!-- 配置dao层与mapper.xml关联 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer" >
+		<property name="basePackage" value="com.sshome.ssmcxf.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+	</bean>
+</beans>
